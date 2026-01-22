@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Streaming</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        /* Fondo animado */
+        body {
+            margin:0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height:100vh;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f4e 50%, #0f172a 100%);
+            color:white;
+            overflow-x:hidden;
+            display:flex;
+            flex-direction:column;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #3b82f6, rgba(59, 130, 246, 0)),
+                radial-gradient(2px 2px at 60px 70px, #60a5fa, rgba(96, 165, 250, 0)),
+                radial-gradient(1px 1px at 50px 50px, #a78bfa, rgba(167, 139, 250, 0)),
+                radial-gradient(1px 1px at 130px 80px, #6366f1, rgba(99, 102, 241, 0)),
+                radial-gradient(2px 2px at 90px 10px, #93c5fd, rgba(147, 197, 253, 0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            background-position: 0 0;
+            animation: dotsDrift 20s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.6;
+        }
+        
+        @keyframes dotsDrift {
+            0% { background-position: 0 0; }
+            100% { background-position: -200px 0; }
+        }
+
+        /* Animaciones */
+        @keyframes fadeDown { from {opacity:0; transform:translateY(-20px);} to {opacity:1; transform:translateY(0);} }
+        @keyframes fadeUp { from {opacity:0; transform:translateY(20px);} to {opacity:1; transform:translateY(0);} }
+        @keyframes scaleUp { from {transform:scale(0.95);} to {transform:scale(1);} }
+        @keyframes float {0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);} }
+        @keyframes glow {0%{box-shadow:0 0 10px #3b82f6;}50%{box-shadow:0 0 35px #6366f1;}100%{box-shadow:0 0 10px #3b82f6;}}
+        @keyframes slideInLeft {from {opacity:0; transform:translateX(-40px);} to {opacity:1; transform:translateX(0);}}
+        @keyframes slideInRight {from {opacity:0; transform:translateX(40px);} to {opacity:1; transform:translateX(0);}}
+        @keyframes pulse {0%, 100%{transform:scale(1);} 50%{transform:scale(1.05);}}
+        @keyframes shimmer {0%{background-position:-1000px 0;} 100%{background-position:1000px 0;}}
+        @keyframes rotateIn {from {opacity:0; transform:rotate(-10deg) scale(0.8);} to {opacity:1; transform:rotate(0) scale(1);}}
+        @keyframes borderGlow {0% {border-color: rgba(59, 130, 246, 0.5);} 50% {border-color: rgba(99, 102, 241, 1);} 100% {border-color: rgba(59, 130, 246, 0.5);}}
+        @keyframes playPulse {0% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8); transform: translate(-50%, -50%) scale(1);} 50% {box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);} 100% {box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); transform: translate(-50%, -50%) scale(1);}}
+        /* Modal */
+        .modal {display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);justify-content:center;align-items:center;z-index:50;transition:opacity 0.5s;backdrop-filter:blur(5px);}
+        .modal.active {display:flex;animation:fadeUp 0.5s;}
+        .modal iframe {width:90%;max-width:900px;aspect-ratio:16/9;transform:scale(0.8);animation:scaleUp 0.5s forwards;border:3px solid #3b82f6;border-radius:15px;box-shadow:0 20px 60px rgba(59, 130, 246, 0.3);}
+
+        /* Último vídeo destacado */
+        .featured {grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:20px;animation:fadeUp 0.8s ease-out;}
+        .featured-image {position:relative;width:100%;max-width:600px;cursor:pointer;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;overflow:visible;}
+        .featured img {width:100%;height:100%;border-radius:0px;object-fit:cover;object-position:center;animation:fadeDown 1s;box-shadow:0 20px 50px rgba(99, 102, 241, 0.5);transition:all 0.3s;display:block;}
+        .featured img:hover {transform:scale(1.02);box-shadow:0 30px 70px rgba(99, 102, 241, 0.7);}
+        .featured-title {font-size:1.8rem;font-weight:bold;animation:slideInLeft 1s ease-out;background:linear-gradient(135deg, #dc2626, #991b1b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;padding:15px 20px;background-color:rgba(0,0,0,0.3);border-radius:15px;backdrop-filter:blur(10px);text-shadow:0 0 30px rgba(220, 38, 38, 0.6);}
+        .play-badge {position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:100px;height:100px;background:linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9));border-radius:50%;display:flex;justify-content:center;align-items:center;font-size:50px;opacity:0;transition:all 0.4s ease;box-shadow:0 10px 40px rgba(59, 130, 246, 0.4);backdrop-filter:blur(10px);border:3px solid rgba(255, 255, 255, 0.3);}
+        .featured-image:hover .play-badge {opacity:1;transform:translate(-50%, -50%) scale(1.15);animation:playPulse 1.5s ease-out;}
+
+        /* Miniaturas */
+        .video-card {position:relative;cursor:pointer;overflow:hidden;border-radius:20px;animation:fadeUp 0.8s ease-out;border:2px solid rgba(99, 102, 241, 0.3);transition:all 0.5s ease;box-shadow:0 10px 30px rgba(0,0,0,0.3);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+        .video-card:hover {transform:translateY(-12px) scale(1.02);box-shadow:0 25px 60px rgba(99, 102, 241, 0.6);border-color:rgba(99, 102, 241, 0.9);}
+        .video-card img {width:100%;height:100%;object-fit:fill;transition:transform 0.5s ease, filter 0.5s ease;display:block;}
+        .video-card:hover img {transform:scale(1.1); filter:brightness(1.2) saturate(1.1);}
+        .video-card h4 {
+            position:absolute;
+            bottom:0;
+            width:100%;
+            padding:15px;
+            margin:0;
+            background:linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.9) 100%);
+            font-weight:bold;
+            font-size:1rem;
+            text-align:center;
+            transition:all 0.5s ease;
+            z-index:10;
+        }
+        .video-card:hover h4 {background:linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,1) 100%);padding:15px;}
+        .video-card::before {content:'';position:absolute;inset:0;background:linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(167, 139, 250, 0.1));opacity:0;transition:opacity 0.3s;z-index:1;}
+        .video-card:hover::before {opacity:1;}
+
+        header {
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 58, 138, 0.95));
+            padding: 25px 20px;
+            text-align: center;
+            backdrop-filter: blur(15px);
+            border-bottom: 2px solid rgba(99, 102, 241, 0.5);
+            animation: slideInDown 0.6s ease-out;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+        }
+        @keyframes slideInDown {from {opacity:0; transform:translateY(-30px);} to {opacity:1; transform:translateY(0);}}
+        header a {
+            margin: 0 25px;
+            color: white;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        header a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            transition: width 0.3s ease;
+        }
+        header a:hover {
+            color: #93c5fd;
+            transform: translateY(-3px);
+            background: rgba(59, 130, 246, 0.25);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+        }
+        header a:hover::after {
+            width: 100%;
+        }
+
+        /* Sección títulos */
+        section h2 {animation:slideInLeft 1s ease-out;}
+
+        /* Layout con sidebar derecho */
+        .container-content {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            padding: 20px;
+            max-width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Layout vertical 33% */
+        main {
+            flex: 1;
+            padding:20px !important;
+            max-width:none !important;
+            margin:0 !important;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Sidebar derecho */
+        .live-sidebar {
+            width: 350px;
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(30, 27, 75, 0.8), rgba(15, 23, 42, 0.9));
+            border-radius: 20px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.2);
+            animation: slideInRight 0.8s ease-out;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .live-sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .live-sidebar::-webkit-scrollbar-track {
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 10px;
+        }
+
+        .live-sidebar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 10px;
+        }
+
+        .live-sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        .live-status {
+            text-align: center;
+        }
+
+        .live-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .live-indicator {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            transition: opacity 0.3s ease-in-out;
+            opacity: 1;
+        }
+
+        .live-badge {
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 30px rgba(220, 38, 38, 0.5);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.9), rgba(153, 27, 27, 0.9));
+            border: 2px solid rgba(248, 113, 113, 0.6);
+        }
+
+        .live-badge.offline {
+            animation: none;
+            box-shadow: 0 0 10px rgba(107, 114, 128, 0.3);
+            background: linear-gradient(135deg, rgba(55, 65, 81, 0.9), rgba(31, 41, 55, 0.9));
+            border: 2px solid rgba(107, 114, 128, 0.5);
+        }
+
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f87171;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        .live-dot.offline {
+            background: #6b7280;
+            animation: none;
+            opacity: 0.6;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .live-platforms {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .platform-toggle {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 6px;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #e5e7eb;
+            background: rgba(255, 255, 255, 0.03);
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(139, 92, 246, 0.8));
+            color: white;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+        }
+
+        .platform-link {
+            padding: 12px 15px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid;
+            background-size: 200% 200%;
+        }
+
+        .platform-link.twitch {
+            background: linear-gradient(135deg, rgba(145, 71, 254, 0.2), rgba(145, 71, 254, 0.1));
+            border-color: rgba(145, 71, 254, 0.6);
+            color: #d8b4fe;
+        }
+
+        .platform-link.twitch:hover {
+            background: linear-gradient(135deg, rgba(145, 71, 254, 0.4), rgba(145, 71, 254, 0.2));
+            border-color: rgba(145, 71, 254, 1);
+            box-shadow: 0 0 20px rgba(145, 71, 254, 0.4);
+            transform: translateX(5px);
+        }
+
+        .platform-link.kick {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
+            border-color: rgba(34, 197, 94, 0.6);
+            color: #86efac;
+        }
+
+        .platform-link.kick:hover {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(34, 197, 94, 0.2));
+            border-color: rgba(34, 197, 94, 1);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+            transform: translateX(5px);
+        }
+
+        .offline-message {
+            padding: 20px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(167, 139, 250, 0.1));
+            border: 2px dashed rgba(96, 165, 250, 0.4);
+            text-align: center;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .offline-message strong {
+            color: #93c5fd;
+        }
+
+        .next-stream {
+            padding: 15px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.15), rgba(75, 85, 99, 0.1));
+            border-left: 4px solid rgba(107, 114, 128, 0.6);
+            font-size: 0.9rem;
+            color: #d1d5db;
+        }
+
+        .next-stream strong {
+            color: #f3f4f6;
+        }
+
+        /* Stream Preview */
+        .stream-preview {
+            border-radius: 15px;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(30, 27, 75, 0.8), rgba(15, 23, 42, 0.9));
+            border: 2px solid rgba(99, 102, 241, 0.4);
+            animation: fadeUp 0.6s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stream-preview-image {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            cursor: pointer;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.2));
+        }
+
+        .stream-preview-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .stream-preview-image:hover img {
+            transform: scale(1.08);
+            filter: brightness(1.1);
+        }
+
+        .stream-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(99, 102, 241, 0.15));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stream-preview-image:hover .stream-overlay {
+            opacity: 1;
+        }
+
+        .stream-play-icon {
+            width: 70px;
+            height: 70px;
+            background: rgba(59, 130, 246, 0.95);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 35px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .stream-viewers {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(248, 113, 113, 0.5);
+        }
+
+        .viewer-dot {
+            width: 8px;
+            height: 8px;
+            background: #f87171;
+            border-radius: 50%;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        .stream-info {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stream-category {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #93c5fd;
+            font-weight: 600;
+            background: rgba(59, 130, 246, 0.2);
+            padding: 4px 10px;
+            border-radius: 8px;
+            width: fit-content;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .stream-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #f3f4f6;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .stream-link-button {
+            display: inline-block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(99, 102, 241, 0.8));
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(96, 165, 250, 0.6);
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .stream-link-button:hover {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(99, 102, 241, 1));
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+            transform: translateY(-2px);
+            border-color: rgba(96, 165, 250, 1);
+        }
+
+        #stream-preview-container {
+            transition: opacity 0.3s ease-in-out;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <a href="/">Inicio</a>
+        <a href="/">Redes</a>
+        <a href="/">Info</a>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div class="container-content">
+        <main class="max-w-6xl mx-auto px-6 py-20 space-y-12">
+
+        <!-- HERO -->
+        <section class="text-center animate-[fadeDown_1s_ease-out]">
+            <h1 class="text-4xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-blue-400 animate-[float_3s_ease-in-out_infinite]" style="animation:slideInLeft 1s ease-out; text-shadow: 0 0 30px rgba(34, 211, 238, 0.6);">
+                Canal de Youtube
+            </h1>
+            <p class="text-xl text-white max-w-2xl mx-auto font-medium" style="animation:slideInRight 1s ease-out;animation-delay:0.2s;">
+                Resumenes de directos, videos editados, colaboraciones
+                y mucho más :3
+            </p>
+        </section>
+
+        <!-- ÚLTIMO VÍDEO DESTACADO -->
+        @if(count($videos))
+        @php $last = $videos[0]; @endphp
+        <section class="featured">
+            @php
+                $videoId = str_replace('yt:video:', '', $last['id']);
+                $title = $last['title'];
+                $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
+            @endphp
+            <div class="featured-title">🎥 Último video del canal 🎥</div>
+            <div class="featured-title">{{ $title }}</div>
+            <div class="featured-image" onclick="openModal('{{ $videoId }}')">
+                <img src="{{ $thumbnail }}" class="cursor-pointer"/>
+                <div class="play-badge">▶</div>
+            </div>
+        </section>
+        @endif
+
+        <!-- OTROS 4 VÍDEOS -->
+        <section class="space-y-10">
+            <h2 class="text-2xl font-extrabold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent text-center" style="text-shadow: 0 0 25px rgba(220, 38, 38, 0.7);">
+                ✨ Más vídeos
+            </h2>
+
+            <div id="youtube-feed" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                @foreach(array_slice($videos,1,2) as $i => $v)
+                    @php
+                        $videoId = str_replace('yt:video:', '', $v['id']);
+                        $title = $v['title'];
+                        $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
+                    @endphp
+                    <div class="video-card" onclick="openModal('{{ $videoId }}')" style="animation-delay:{{ $i * 0.15 }}s;">
+                        <h4>{{ $title }}</h4>
+                        <img src="{{ $thumbnail }}"/>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SIDEBAR - ESTADO DE DIRECTO -->
+    <aside class="live-sidebar">
+        <div class="live-status">
+            <div class="live-title">📡 Estado en Directo</div>
+            <div class="live-indicator" id="live-status-container">
+                <div style="text-align: center; color: #9ca3af; font-size: 0.9rem;">
+                    Verificando estado...
+                </div>
+            </div>
+        </div>
+
+        <div id="stream-preview-container"></div>
+
+        <div class="platform-toggle" id="platform-toggle">
+            <button class="toggle-btn active" data-platform="twitch">Twitch</button>
+            <button class="toggle-btn" data-platform="kick">Kick</button>
+        </div>
+
+        <div class="live-platforms">
+            <a href="https://twitch.tv/PtaZet4_" target="_blank" rel="noopener" class="platform-link twitch">
+                <span>🎮</span>
+                <span>Twitch</span>
+            </a>
+            <a href="https://kick.com/PtaZet4" target="_blank" rel="noopener" class="platform-link kick">
+                <span>🚀</span>
+                <span>Kick</span>
+            </a>
+        </div>
+
+        <div id="stream-info-container"></div>
+    </aside>
+
+    </div>
+
+    <!-- MODAL -->
+    <div id="video-modal" class="modal items-center justify-center">
+        <iframe id="modal-iframe" src="" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <!-- JS -->
+    <script>
+        function openModal(videoId){
+            const modal = document.getElementById('video-modal');
+            const iframe = document.getElementById('modal-iframe');
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            modal.classList.add('active');
+        }
+
+        function closeModal(){
+            const modal = document.getElementById('video-modal');
+            const iframe = document.getElementById('modal-iframe');
+            iframe.src = '';
+            modal.classList.remove('active');
+        }
+
+        document.getElementById('video-modal').addEventListener('click', e=>{
+            if(e.target.id==='video-modal') closeModal();
+        });
+
+        let selectedPlatform = 'twitch';
+        let lastStatus = null;
+
+        // Verificar estado de streams
+        async function checkStreamStatus() {
+            try {
+                // Si no hay override, intentar detección automática
+                const response = await fetch('/api/stream-status');
+                
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+
+                const data = await response.json();
+                lastStatus = data;
+                updateStreamUI(data);
+            } catch (error) {
+                console.error('Error verificando streams:', error);
+                updateStreamUI({
+                    isLive: false,
+                    platform: null,
+                    twitch: false,
+                    kick: false,
+                    streamData: null
+                });
+            }
+        }
+
+        function updatePlatformToggle(active) {
+            const toggleButtons = document.querySelectorAll('#platform-toggle .toggle-btn');
+            toggleButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.platform === active);
+            });
+        }
+
+        function updateStreamUI(data) {
+            const statusContainer = document.getElementById('live-status-container');
+            const infoContainer = document.getElementById('stream-info-container');
+            const previewContainer = document.getElementById('stream-preview-container');
+            const twitchButton = document.querySelector('.platform-link.twitch');
+            const kickButton = document.querySelector('.platform-link.kick');
+            const platformToggle = document.getElementById('platform-toggle');
+
+            // Normalizar datos por plataforma
+            const twitchData = data.twitchData || (data.platform === 'twitch' ? data.streamData : { live: data.twitch || false });
+            const kickData = data.kickData || (data.platform === 'kick' ? data.streamData : { live: data.kick || false });
+
+            const twitchLive = twitchData && twitchData.live;
+            const kickLive = kickData && kickData.live;
+
+            // Mostrar/ocultar botones inferiores según plataforma en directo
+            if (twitchButton) twitchButton.style.display = twitchLive ? 'none' : 'inline-flex';
+            if (kickButton) kickButton.style.display = kickLive ? 'none' : 'inline-flex';
+
+            // Mostrar slider solo si ambas plataformas están en directo
+            if (platformToggle) {
+                const showToggle = twitchLive && kickLive;
+                platformToggle.style.display = showToggle ? 'grid' : 'none';
+                if (!showToggle) {
+                    if (twitchLive && !kickLive) selectedPlatform = 'twitch';
+                    else if (kickLive && !twitchLive) selectedPlatform = 'kick';
+                }
+            }
+
+            // Elegir plataforma inicial si no hay selección manual o cambiar a la que esté en vivo
+            if (!selectedPlatform) {
+                selectedPlatform = twitchLive ? 'twitch' : (kickLive ? 'kick' : 'twitch');
+            } else if (!twitchLive && kickLive && selectedPlatform === 'twitch') {
+                selectedPlatform = 'kick';
+            } else if (!kickLive && twitchLive && selectedPlatform === 'kick') {
+                selectedPlatform = 'twitch';
+            }
+            updatePlatformToggle(selectedPlatform);
+
+            const activePlatform = selectedPlatform;
+            const activeData = activePlatform === 'twitch' ? twitchData : kickData;
+            const isLive = activeData && activeData.live;
+            const platformEmoji = activePlatform === 'twitch' ? '🎮' : '🚀';
+            const platformName = activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1);
+
+            if (isLive && activeData) {
+                const streamData = {
+                    title: activeData.title || `En directo en ${platformName}`,
+                    viewers: activeData.viewers || 0,
+                    thumbnail: activeData.thumbnail || '',
+                    game: activeData.game || 'Sin categoría',
+                    url: activeData.url || (activePlatform === 'twitch' ? 'https://twitch.tv/PtaZet4_' : 'https://kick.com/PtaZet4')
+                };
+
+                // Asegurar que el contenedor del status existe
+                let statusBadge = statusContainer.querySelector('.live-badge');
+                if (!statusBadge) {
+                    statusContainer.innerHTML = `
+                        <div class="live-badge">
+                            <div class="live-dot"></div>
+                            <span>EN DIRECTO</span>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #d1d5db;">
+                            Transmitiendo en <strong style="color: #93c5fd;"><span class="platform-name">${platformEmoji} ${platformName}</span></strong>
+                        </div>
+                    `;
+                } else {
+                    const platformSpan = statusContainer.querySelector('.platform-name');
+                    if (platformSpan) {
+                        platformSpan.textContent = `${platformEmoji} ${platformName}`;
+                    }
+                }
+
+                statusContainer.style.display = 'flex';
+                infoContainer.innerHTML = '';
+
+                // ACTUALIZAR PREVIEW - SOLO MODIFICAR VALORES, NO RECREAR DOM
+                if (!previewContainer.querySelector('.stream-preview')) {
+                    let viewerText = '';
+                    if (streamData.viewers > 0) {
+                        viewerText = `<div class="stream-viewers">
+                            <div class="viewer-dot"></div>
+                            <span class="viewer-count">${streamData.viewers.toLocaleString()}</span>
+                        </div>`;
+                    }
+
+                    let imageContent = '';
+                    if (streamData.thumbnail) {
+                        imageContent = `<img src="${streamData.thumbnail}" alt="${streamData.title}" class="stream-preview-img" onerror="this.style.display='none'"/>`;
+                    }
+
+                    previewContainer.innerHTML = `
+                        <div class="stream-preview">
+                            <div class="stream-preview-image" data-url="${streamData.url}">
+                                ${imageContent}
+                                ${viewerText}
+                                <div class="stream-overlay">
+                                    <div class="stream-play-icon">▶</div>
+                                </div>
+                            </div>
+                            <div class="stream-info">
+                                <div class="stream-category"><span class="category-text">🎮 ${streamData.game}</span></div>
+                                <div class="stream-title"><span class="title-text">${streamData.title}</span></div>
+                                <a href="${streamData.url}" target="_blank" class="stream-link-button">
+                                    ▶ Ver en vivo
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
+                    if (previewImageDiv) {
+                        previewImageDiv.addEventListener('click', function() {
+                            window.open(this.dataset.url, '_blank');
+                        });
+                    }
+                } else {
+                    const img = previewContainer.querySelector('.stream-preview-img');
+                    if (img && img.src !== streamData.thumbnail) {
+                        img.src = streamData.thumbnail;
+                        img.alt = streamData.title;
+                    }
+
+                    const viewerCount = previewContainer.querySelector('.viewer-count');
+                    if (viewerCount) {
+                        const newViewerText = streamData.viewers > 0 ? streamData.viewers.toLocaleString() : '';
+                        if (viewerCount.textContent !== newViewerText) {
+                            viewerCount.textContent = newViewerText;
+                        }
+                        const viewerBox = previewContainer.querySelector('.stream-viewers');
+                        if (viewerBox) viewerBox.style.display = streamData.viewers > 0 ? 'flex' : 'none';
+                    }
+
+                    const categoryText = previewContainer.querySelector('.category-text');
+                    if (categoryText) {
+                        const newCategoryHTML = `🎮 ${streamData.game}`;
+                        if (categoryText.innerHTML !== newCategoryHTML) {
+                            categoryText.innerHTML = newCategoryHTML;
+                        }
+                    }
+
+                    const titleText = previewContainer.querySelector('.title-text');
+                    if (titleText) {
+                        const newTitleHTML = streamData.title;
+                        if (titleText.textContent !== newTitleHTML) {
+                            titleText.textContent = newTitleHTML;
+                        }
+                    }
+
+                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
+                    if (previewImageDiv && previewImageDiv.dataset.url !== streamData.url) {
+                        previewImageDiv.dataset.url = streamData.url;
+                    }
+
+                    const streamLinkButton = previewContainer.querySelector('.stream-link-button');
+                    if (streamLinkButton && streamLinkButton.href !== streamData.url) {
+                        streamLinkButton.href = streamData.url;
+                    }
+                }
+
+            } else {
+                // Offline para la plataforma activa
+                statusContainer.innerHTML = `
+                    <div class="live-badge offline">
+                        <div class="live-dot offline"></div>
+                        <span>OFFLINE</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #d1d5db;">
+                        ${platformEmoji} ${platformName} está offline
+                    </div>
+                `;
+
+                previewContainer.innerHTML = '';
+
+                infoContainer.innerHTML = `
+                    <div class="offline-message">
+                        <strong>No estoy transmitiendo en ${platformName} ahora.</strong><br>
+                        Pero puedes seguirme para recibir notificaciones cuando inicie un directo. ¡Te espero! 😊
+                    </div>
+                    <div class="next-stream">
+                        <strong>💡 Tip:</strong> Sigue mis redes para conocer el horario de mis próximos directos.
+                    </div>
+                `;
+            }
+        }
+
+        // Manejar cambio de slider
+        const platformToggle = document.getElementById('platform-toggle');
+        if (platformToggle) {
+            platformToggle.addEventListener('click', (e) => {
+                const btn = e.target.closest('.toggle-btn');
+                if (!btn) return;
+                const targetPlatform = btn.dataset.platform;
+                if (targetPlatform && targetPlatform !== selectedPlatform) {
+                    selectedPlatform = targetPlatform;
+                    updatePlatformToggle(selectedPlatform);
+                    if (lastStatus) {
+                        updateStreamUI(lastStatus);
+                    }
+                }
+            });
+        }
+
+        // Verificar estado al cargar
+        checkStreamStatus();
+
+        // Verificar cada 3 segundos
+        setInterval(checkStreamStatus, 3000);
+    </script>
+
+</body>
+</html>
