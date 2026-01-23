@@ -7,23 +7,6 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2" id="favicon">
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon.ico') }}">
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const favicon = document.getElementById('favicon');
-            console.log('🔍 Favicon href:', favicon ? favicon.href : 'NO ENCONTRADO');
-            console.log('🔍 Asset URL:', '{{ asset('favicon.ico') }}');
-            console.log('🔍 Base URL:', window.location.origin);
-            
-            if (favicon) {
-                favicon.onerror = function() {
-                    console.error('❌ Error cargando favicon:', this.href);
-                };
-                favicon.onload = function() {
-                    console.log('✅ Favicon cargado correctamente');
-                };
-            }
-        });
-    </script>
     <style>
         * {
             margin: 0;
