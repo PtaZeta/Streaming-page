@@ -96,46 +96,46 @@
         .video-card:hover::before {opacity:1;}
 
         header {
-            background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 58, 138, 0.95));
-            padding: 25px 20px;
-            text-align: center;
-            backdrop-filter: blur(15px);
-            border-bottom: 2px solid rgba(99, 102, 241, 0.5);
-            animation: slideInDown 0.6s ease-out;
             position: sticky;
             top: 0;
-            z-index: 40;
-            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 25px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
-        @keyframes slideInDown {from {opacity:0; transform:translateY(-30px);} to {opacity:1; transform:translateY(0);}}
+
         header a {
-            margin: 0 25px;
             color: white;
-            font-weight: 700;
             text-decoration: none;
-            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
             position: relative;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 1.05rem;
-            background: rgba(59, 130, 246, 0.1);
+            padding: 8px 15px;
         }
+
         header a::after {
             content: '';
             position: absolute;
             bottom: 0;
-            left: 0;
+            left: 50%;
             width: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transform: translateX(-50%);
             transition: width 0.3s ease;
         }
+
         header a:hover {
             color: #93c5fd;
-            transform: translateY(-3px);
-            background: rgba(59, 130, 246, 0.25);
-            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
         }
+
         header a:hover::after {
             width: 100%;
         }
@@ -563,7 +563,7 @@
     <!-- HEADER -->
     <header>
         <a href="/">Inicio</a>
-        <a href="/">Redes</a>
+        <a href="/redes">Redes</a>
         <a href="/">Info</a>
     </header>
 
