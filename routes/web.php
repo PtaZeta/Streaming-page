@@ -3,8 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\YouTubeController;
 use App\Http\Controllers\StreamStatusController;
+use App\Http\Controllers\TwitchContentController;
 
 Route::get('/', [YouTubeController::class, 'index']);
+Route::get('/redes', function () {
+    return view('redes');
+});
+Route::get('/contenido', [TwitchContentController::class, 'index']);
 Route::get('/api/stream-status', [StreamStatusController::class, 'checkStatus']);
 Route::post('/api/stream-status/set', [StreamStatusController::class, 'setStatus']);
 Route::get('/api/stream-status/override', [StreamStatusController::class, 'getOverrideStatus']);

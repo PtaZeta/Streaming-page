@@ -20,8 +20,8 @@ class YouTubeController extends Controller
             $data = json_decode(json_encode($xml), true);
             $entries = $data['entry'] ?? [];
 
-            // Tomar solo los últimos 7 vídeos
-            $videos = array_slice($entries, 0, 3);
+            // Tomar los últimos 4 vídeos (1 destacado + 3 adicionales)
+            $videos = array_slice($entries, 0, 4);
         } catch (\Exception $e) {
             $videos = [];
             // Para depurar si falla
