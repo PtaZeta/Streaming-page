@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>PtaZet4</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
