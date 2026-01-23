@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>PtaZet4</title>
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" id="favicon">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2" id="favicon">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>
         document.addEventListener('DOMContentLoaded', function() {
