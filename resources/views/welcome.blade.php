@@ -564,7 +564,7 @@
     <header>
         <a href="/">Inicio</a>
         <a href="/redes">Redes</a>
-        <a href="/">Info</a>
+        <a href="/contenido">Contenido</a>
     </header>
 
     <!-- CONTENIDO -->
@@ -1022,14 +1022,11 @@
                 }
 
             } else {
-                // Offline para la plataforma activa
+                // Offline
                 statusContainer.innerHTML = `
                     <div class="live-badge offline">
                         <div class="live-dot offline"></div>
                         <span>OFFLINE</span>
-                    </div>
-                    <div style="font-size: 0.9rem; color: #d1d5db;">
-                        ${platformEmoji} ${platformName} está offline
                     </div>
                 `;
 

@@ -478,7 +478,7 @@
     <header>
         <a href="/">Inicio</a>
         <a href="/redes">Redes</a>
-        <a href="/">Info</a>
+        <a href="/contenido">Contenido</a>
     </header>
 
     <!-- CONTENIDO -->
