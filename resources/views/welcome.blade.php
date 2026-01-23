@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Streaming</title>
+    <title>PtaZet4</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
@@ -65,13 +65,59 @@
         .modal iframe {width:90%;max-width:900px;aspect-ratio:16/9;transform:scale(0.8);animation:scaleUp 0.5s forwards;border:3px solid #3b82f6;border-radius:15px;box-shadow:0 20px 60px rgba(59, 130, 246, 0.3);}
 
         /* Último vídeo destacado */
-        .featured {grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:20px;animation:fadeUp 0.8s ease-out;}
-        .featured-image {position:relative;width:100%;max-width:600px;cursor:pointer;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;overflow:visible;}
-        .featured img {width:100%;height:100%;border-radius:0px;object-fit:cover;object-position:center;animation:fadeDown 1s;box-shadow:0 20px 50px rgba(99, 102, 241, 0.5);transition:all 0.3s;display:block;}
-        .featured img:hover {transform:scale(1.02);box-shadow:0 30px 70px rgba(99, 102, 241, 0.7);}
-        .featured-title {font-size:1.8rem;font-weight:bold;animation:slideInLeft 1s ease-out;background:linear-gradient(135deg, #dc2626, #991b1b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;padding:15px 20px;background-color:rgba(0,0,0,0.3);border-radius:15px;backdrop-filter:blur(10px);text-shadow:0 0 30px rgba(220, 38, 38, 0.6);}
-        .play-badge {position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:100px;height:100px;background:linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9));border-radius:50%;display:flex;justify-content:center;align-items:center;font-size:50px;opacity:0;transition:all 0.4s ease;box-shadow:0 10px 40px rgba(59, 130, 246, 0.4);backdrop-filter:blur(10px);border:3px solid rgba(255, 255, 255, 0.3);}
-        .featured-image:hover .play-badge {opacity:1;transform:translate(-50%, -50%) scale(1.15);animation:playPulse 1.5s ease-out;}
+        .featured {grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:30px;animation:fadeUp 0.8s ease-out;max-width:700px;margin:0 auto 50px auto;width:100%;}
+        
+        .featured-header {text-align:center;margin-bottom:10px;}
+        
+        .featured-label {font-size:1rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;animation:slideInLeft 0.8s ease-out;}
+        
+        .featured-title {font-size:2rem;font-weight:900;animation:slideInLeft 1s ease-out;background:linear-gradient(135deg, #dc2626, #ef4444, #f87171);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;padding:0;margin:0;animation:slideInRight 1s ease-out, titleGradient 4s ease infinite;filter:drop-shadow(0 0 30px rgba(220, 38, 38, 0.6));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+        
+        @keyframes titleGradient {0%, 100% {background-position:0% 50%;} 50% {background-position:100% 50%;}}
+        
+        .featured-container {position:relative;width:100%;border-radius:30px;overflow:hidden;background:linear-gradient(135deg, rgba(30, 27, 75, 0.5), rgba(15, 23, 42, 0.7));backdrop-filter:blur(20px);border:1px solid rgba(139, 92, 246, 0.3);transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1);animation:featuredAppear 1.2s ease-out;}
+        
+        .featured-container::before {content:'';position:absolute;inset:-3px;border-radius:30px;background:linear-gradient(135deg, #dc2626, #ef4444, #f87171, #8b5cf6, #6366f1, #3b82f6, #dc2626);background-size:400% 400%;animation:borderFlow 8s linear infinite;z-index:-1;opacity:0.6;}
+        
+        @keyframes borderFlow {0% {background-position:0% 50%;} 50% {background-position:100% 50%;} 100% {background-position:0% 50%;}}
+        
+        .featured-container:hover {transform:translateY(-8px) scale(1.02);border-color:rgba(139, 92, 246, 0.6);}
+        
+        .featured-container::after {content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.08), transparent);transform:rotate(45deg);transition:all 0.6s ease;pointer-events:none;}
+        
+        .featured-container:hover::after {animation:featuredShine 2s ease-in-out infinite;}
+        
+        @keyframes featuredShine {0% {left:-50%;} 100% {left:150%;}}
+        
+        @keyframes featuredAppear {from {opacity:0;transform:scale(0.9) translateY(30px);} to {opacity:1;transform:scale(1) translateY(0);}}
+        
+        .featured-image {position:relative;width:100%;cursor:pointer;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));}
+        
+        .featured-image:hover img {transform:scale(1.08);filter:brightness(1.15) saturate(1.2);}
+        
+        .play-badge {position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:100px;height:100px;background:linear-gradient(145deg, #8b5cf6, #6366f1, #3b82f6);background-size:200% 200%;border-radius:50%;display:flex;justify-content:center;align-items:center;opacity:0;transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 0 0 0 rgba(139, 92, 246, 0.7), 0 0 40px rgba(139, 92, 246, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);border:4px solid rgba(255, 255, 255, 0.3);z-index:10;animation:ytPlayPulse 2s ease-in-out infinite, ytGradientRotate 3s linear infinite;}
+        
+        .play-badge::before {content:'';position:absolute;inset:-10px;border-radius:50%;border:3px solid rgba(139, 92, 246, 0.5);animation:ytRipple 2s ease-out infinite;}
+        
+        .play-badge::after {content:'▶';font-size:38px;color:white;margin-left:5px;filter:drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));}
+        
+        .featured-image:hover .play-badge {opacity:1;transform:translate(-50%, -50%) scale(1.15);box-shadow:0 0 0 20px rgba(139, 92, 246, 0.2), 0 0 70px rgba(139, 92, 246, 1), 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.5);}
+        
+        .featured-info {padding:25px 30px;background:linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 27, 75, 0.8));border-top:1px solid rgba(139, 92, 246, 0.2);}
+        
+        .featured-video-title {font-size:1.3rem;font-weight:700;color:#f3f4f6;margin-bottom:15px;line-height:1.4;text-align:center;background:linear-gradient(135deg, #f3f4f6, #e5e7eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        
+        .featured-meta {display:flex;justify-content:center;gap:30px;color:#94a3b8;font-size:0.95rem;flex-wrap:wrap;}
+        
+        .featured-meta-item {display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(139, 92, 246, 0.1);border-radius:20px;border:1px solid rgba(139, 92, 246, 0.2);transition:all 0.3s ease;}
+        
+        .featured-meta-item:hover {background:rgba(139, 92, 246, 0.2);border-color:rgba(139, 92, 246, 0.4);transform:translateY(-2px);}
+        
+        @keyframes ytPlayPulse {0%, 100% {box-shadow:0 0 0 0 rgba(139, 92, 246, 0.7), 0 0 40px rgba(139, 92, 246, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);} 50% {box-shadow:0 0 0 15px rgba(139, 92, 246, 0), 0 0 70px rgba(139, 92, 246, 1), 0 15px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);}}
+        
+        @keyframes ytRipple {0% {transform:scale(1);opacity:1;} 100% {transform:scale(1.5);opacity:0;}}
+        
+        @keyframes ytGradientRotate {0% {background-position:0% 50%;} 50% {background-position:100% 50%;} 100% {background-position:0% 50%;}}
 
         /* Miniaturas */
         .video-card {position:relative;cursor:pointer;overflow:hidden;border-radius:20px;animation:fadeUp 0.8s ease-out;border:2px solid rgba(99, 102, 241, 0.3);transition:all 0.5s ease;box-shadow:0 10px 30px rgba(0,0,0,0.3);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
@@ -584,18 +630,22 @@
 
         <!-- ÚLTIMO VÍDEO DESTACADO -->
         @if(count($videos))
-        @php $last = $videos[0]; @endphp
+        @php 
+            $last = $videos[0];
+            $videoId = str_replace('yt:video:', '', $last['id']);
+            $title = $last['title'];
+            $thumbnail = "https://img.youtube.com/vi/{$videoId}/maxresdefault.jpg";
+        @endphp
         <section class="featured">
-            @php
-                $videoId = str_replace('yt:video:', '', $last['id']);
-                $title = $last['title'];
-                $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
-            @endphp
-            <div class="featured-title">🎥 Último video del canal 🎥</div>
-            <div class="featured-title">{{ $title }}</div>
-            <div class="featured-image" onclick="openModal('{{ $videoId }}')">
-                <img src="{{ $thumbnail }}" class="cursor-pointer"/>
-                <div class="play-badge">▶</div>
+            <div class="featured-header">
+                <h2 class="featured-title">{{ $title }}</h2>
+            </div>
+            
+            <div class="featured-container">
+                <div class="featured-image" onclick="openModal('{{ $videoId }}')">
+                    <img src="{{ $thumbnail }}" alt="{{ $title }}" onerror="this.src='https://img.youtube.com/vi/{{ $videoId }}/hqdefault.jpg'"/>
+                    <div class="play-badge"></div>
+                </div>
             </div>
         </section>
         @endif
@@ -607,7 +657,7 @@
             </h2>
 
             <div id="youtube-feed" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                @foreach(array_slice($videos,1,2) as $i => $v)
+                @foreach(array_slice($videos,1,3) as $i => $v)
                     @php
                         $videoId = str_replace('yt:video:', '', $v['id']);
                         $title = $v['title'];

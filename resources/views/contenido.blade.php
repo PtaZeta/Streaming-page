@@ -77,7 +77,7 @@
             justify-content: center;
             gap: 30px;
             padding: 25px;
-            background: rgba(10, 14, 26, 0.85);
+            background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(139, 92, 246, 0.2);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
@@ -340,12 +340,13 @@
         .play-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(139, 92, 246, 0.3));
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
         }
 
         .content-card:hover .play-overlay {
@@ -353,27 +354,88 @@
         }
 
         .play-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(145deg, #8b5cf6, #6366f1, #3b82f6);
+            background-size: 200% 200%;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 35px;
-            animation: playPulse 2s ease-in-out infinite;
-            box-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(99, 102, 241, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 0 0 0 rgba(139, 92, 246, 0.7),
+                0 0 40px rgba(139, 92, 246, 0.6),
+                0 10px 30px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.25);
+            animation: playPulse 2s ease-in-out infinite, gradientRotate 3s linear infinite;
+        }
+
+        .play-icon::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            animation: ripple 2s ease-out infinite;
+        }
+
+        .play-icon::after {
+            content: '▶';
+            font-size: 32px;
+            color: white;
+            margin-left: 4px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .content-card:hover .play-icon {
+            transform: scale(1.1);
+            box-shadow: 
+                0 0 0 15px rgba(139, 92, 246, 0.2),
+                0 0 60px rgba(139, 92, 246, 0.9),
+                0 15px 45px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
         }
 
         @keyframes playPulse {
             0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(99, 102, 241, 0.4);
+                box-shadow: 
+                    0 0 0 0 rgba(139, 92, 246, 0.7),
+                    0 0 40px rgba(139, 92, 246, 0.6),
+                    0 10px 30px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.3);
             }
             50% {
-                transform: scale(1.15);
-                box-shadow: 0 0 60px rgba(139, 92, 246, 1), 0 0 80px rgba(99, 102, 241, 0.6);
+                box-shadow: 
+                    0 0 0 10px rgba(139, 92, 246, 0),
+                    0 0 60px rgba(139, 92, 246, 0.9),
+                    0 15px 40px rgba(0, 0, 0, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            }
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.4);
+                opacity: 0;
+            }
+        }
+
+        @keyframes gradientRotate {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
             }
         }
 
@@ -598,7 +660,7 @@
                             <div class="content-thumbnail">
                                 <img src="{{ $clip['thumbnail_url'] }}" alt="{{ $clip['title'] }}" loading="lazy">
                                 <div class="play-overlay">
-                                    <div class="play-icon">▶</div>
+                                    <div class="play-icon"></div>
                                 </div>
                                 <div class="views-badge">
                                     👁 {{ number_format($clip['view_count']) }}
@@ -638,7 +700,7 @@
                             <div class="content-thumbnail">
                                 <img src="{{ str_replace('%{width}x%{height}', '640x360', $vod['thumbnail_url']) }}" alt="{{ $vod['title'] }}" loading="lazy">
                                 <div class="play-overlay">
-                                    <div class="play-icon">▶</div>
+                                    <div class="play-icon"></div>
                                 </div>
                                 <div class="views-badge">
                                     👁 {{ number_format($vod['view_count']) }}
