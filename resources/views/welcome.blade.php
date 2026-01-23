@@ -3,8 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>PtaZet4</title>
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" id="favicon">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const favicon = document.getElementById('favicon');
+            console.log('🔍 Favicon href:', favicon ? favicon.href : 'NO ENCONTRADO');
+            console.log('🔍 Asset URL:', '{{ asset('favicon.ico') }}');
+            console.log('🔍 Base URL:', window.location.origin);
+            
+            if (favicon) {
+                favicon.onerror = function() {
+                    console.error('❌ Error cargando favicon:', this.href);
+                };
+                favicon.onload = function() {
+                    console.log('✅ Favicon cargado correctamente');
+                };
+            }
+        });
+    </script>
 
     <style>
         /* Fondo animado */

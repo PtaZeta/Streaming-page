@@ -4,7 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contenido - PtaZet4</title>
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" id="favicon">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const favicon = document.getElementById('favicon');
+            console.log('🔍 Favicon href:', favicon ? favicon.href : 'NO ENCONTRADO');
+            console.log('🔍 Asset URL:', '{{ asset('favicon.ico') }}');
+            console.log('🔍 Base URL:', window.location.origin);
+            
+            if (favicon) {
+                favicon.onerror = function() {
+                    console.error('❌ Error cargando favicon:', this.href);
+                };
+                favicon.onload = function() {
+                    console.log('✅ Favicon cargado correctamente');
+                };
+            }
+        });
+    </script>
     <style>
         * {
             margin: 0;
