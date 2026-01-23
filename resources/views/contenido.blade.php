@@ -12,14 +12,17 @@
             console.log('🔍 Asset URL:', '{{ asset('favicon.ico') }}');
             console.log('🔍 Base URL:', window.location.origin);
             
-            if (favicon) {
-                favicon.onerror = function() {
-                    console.error('❌ Error cargando favicon:', this.href);
-                };
-                favicon.onload = function() {
-                    console.log('✅ Favicon cargado correctamente');
-                };
-            }
+            // Verificar si el archivo existe haciendo fetch
+            fetch('{{ asset('favicon.ico') }}', { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('✅ Favicon existe (Status:', response.status, ')');
+                        console.log('📦 Content-Type:', response.headers.get('content-type'));
+                    } else {
+                        console.error('❌ Favicon no encontrado (Status:', response.status, ')');
+                    }
+                })
+                .catch(err => console.error('❌ Error al cargar favicon:', err));
         });
     </script>
     <style>
