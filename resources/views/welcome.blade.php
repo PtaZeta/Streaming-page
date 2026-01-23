@@ -369,11 +369,46 @@
         .stream-preview {
             border-radius: 15px;
             overflow: hidden;
+            position: relative;
             background: linear-gradient(135deg, rgba(30, 27, 75, 0.8), rgba(15, 23, 42, 0.9));
             border: 2px solid rgba(99, 102, 241, 0.4);
-            animation: fadeUp 0.6s ease-out;
+            animation: fadeUp 0.6s ease-out, borderGlow 3s ease-in-out infinite;
             display: flex;
             flex-direction: column;
+        }
+
+        .stream-preview::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #3b82f6);
+            background-size: 300% 300%;
+            border-radius: 15px;
+            z-index: -1;
+            opacity: 0.6;
+            animation: gradientShift 8s ease infinite;
+            filter: blur(8px);
+        }
+
+        @keyframes borderGlow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 35px rgba(99, 102, 241, 0.8), 0 0 50px rgba(139, 92, 246, 0.4);
+            }
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         .stream-preview-image {
@@ -383,6 +418,16 @@
             overflow: hidden;
             cursor: pointer;
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.2));
+            animation: subtleGlow 4s ease-in-out infinite;
+        }
+
+        @keyframes subtleGlow {
+            0%, 100% {
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.2));
+            }
+            50% {
+                background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.3));
+            }
         }
 
         .stream-preview-image img {
@@ -581,7 +626,7 @@
     <!-- SIDEBAR - ESTADO DE DIRECTO -->
     <aside class="live-sidebar">
         <div class="live-status">
-            <div class="live-title">📡 Estado en Directo</div>
+            <div class="live-title">📡 Canales de Streaming</div>
             <div class="live-indicator" id="live-status-container">
                 <div style="text-align: center; color: #9ca3af; font-size: 0.9rem;">
                     Verificando estado...
@@ -598,11 +643,11 @@
 
         <div class="live-platforms">
             <a href="https://twitch.tv/PtaZet4_" target="_blank" rel="noopener" class="platform-link twitch">
-                <span>🎮</span>
+                <span>♠️</span>
                 <span>Twitch</span>
             </a>
             <a href="https://kick.com/PtaZet4" target="_blank" rel="noopener" class="platform-link kick">
-                <span>🚀</span>
+                <span>♥️</span>
                 <span>Kick</span>
             </a>
         </div>
@@ -640,17 +685,111 @@
         let selectedPlatform = 'twitch';
         let lastStatus = null;
 
+        // Verificar estado de Kick directamente desde el navegador
+        async function checkKickStatus() {
+            try {
+                // Añadir timestamp para evitar caché
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://kick.com/api/v2/channels/ptazet4?_=${timestamp}`, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Verificar si livestream es null (offline) o si tiene el flag is_live en false
+                    const hasLivestream = data.livestream !== null && data.livestream !== undefined;
+                    
+                    if (!hasLivestream) {
+                        return {
+                            live: false,
+                            title: '',
+                            viewers: 0,
+                            game: '',
+                            thumbnail: '',
+                            url: 'https://kick.com/ptazet4'
+                        };
+                    }
+                    
+                    const isLiveFlagSet = data.livestream.is_live === true;
+                    
+                    if (!isLiveFlagSet) {
+                        return {
+                            live: false,
+                            title: '',
+                            viewers: 0,
+                            game: '',
+                            thumbnail: '',
+                            url: 'https://kick.com/ptazet4'
+                        };
+                    }
+                    
+                    let thumbnail = '';
+                    if (data.livestream.thumbnail && data.livestream.thumbnail.url) {
+                        thumbnail = data.livestream.thumbnail.url;
+                    } else if (data.livestream.thumbnail && typeof data.livestream.thumbnail === 'string') {
+                        thumbnail = data.livestream.thumbnail;
+                    } else if (data.user && data.user.profile_pic) {
+                        thumbnail = data.user.profile_pic;
+                    } else if (data.livestream.playback_url) {
+                        thumbnail = data.livestream.playback_url.replace('.m3u8', '.jpg');
+                    }
+                    
+                    return {
+                        live: true,
+                        title: data.livestream.session_title || '',
+                        viewers: parseInt(data.livestream.viewer_count) || 0,
+                        game: data.livestream.categories && data.livestream.categories.length > 0 
+                            ? data.livestream.categories[0].name 
+                            : 'Sin categoría',
+                        thumbnail: thumbnail,
+                        url: 'https://kick.com/ptazet4'
+                    };
+                }
+            } catch (error) {
+                // Silently fail
+            }
+            
+            // Si hay algún error, devolver offline
+            return {
+                live: false,
+                title: '',
+                viewers: 0,
+                game: '',
+                thumbnail: '',
+                url: 'https://kick.com/ptazet4'
+            };
+        }
+
         // Verificar estado de streams
         async function checkStreamStatus() {
             try {
-                // Si no hay override, intentar detección automática
-                const response = await fetch('/api/stream-status');
+                // Obtener estado de Twitch del servidor y Kick del navegador
+                const [serverResponse, kickData] = await Promise.all([
+                    fetch('/api/stream-status'),
+                    checkKickStatus()
+                ]);
                 
-                if (!response.ok) {
+                if (!serverResponse.ok) {
                     throw new Error('Error en la respuesta del servidor');
                 }
 
-                const data = await response.json();
+                const data = await serverResponse.json();
+                
+                // Si obtuvimos datos de Kick desde el navegador, sobrescribir
+                if (kickData !== null) {
+                    data.kick = kickData.live;
+                    data.kickData = kickData;
+                    data.isLive = data.twitch || kickData.live;
+                    if (!data.platform && kickData.live) {
+                        data.platform = 'kick';
+                    }
+                }
+                
                 lastStatus = data;
                 updateStreamUI(data);
             } catch (error) {
@@ -714,7 +853,7 @@
             const activePlatform = selectedPlatform;
             const activeData = activePlatform === 'twitch' ? twitchData : kickData;
             const isLive = activeData && activeData.live;
-            const platformEmoji = activePlatform === 'twitch' ? '🎮' : '🚀';
+            const platformEmoji = activePlatform === 'twitch' ? '♠️' : '♥️';
             const platformName = activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1);
 
             if (isLive && activeData) {
@@ -739,9 +878,27 @@
                         </div>
                     `;
                 } else {
+                    // Actualizar el badge existente de offline a live
+                    statusBadge.classList.remove('offline');
+                    const liveDot = statusBadge.querySelector('.live-dot');
+                    if (liveDot) {
+                        liveDot.classList.remove('offline');
+                    }
+                    const badgeText = statusBadge.querySelector('span');
+                    if (badgeText && badgeText.textContent !== 'EN DIRECTO') {
+                        badgeText.textContent = 'EN DIRECTO';
+                    }
                     const platformSpan = statusContainer.querySelector('.platform-name');
                     if (platformSpan) {
                         platformSpan.textContent = `${platformEmoji} ${platformName}`;
+                    } else {
+                        // Si no existe el span de plataforma, recrear el mensaje completo
+                        const statusTextDiv = Array.from(statusContainer.children).find(el => 
+                            el.style.fontSize === '0.9rem' || el.textContent.includes('offline') || el.textContent.includes('Transmitiendo')
+                        );
+                        if (statusTextDiv) {
+                            statusTextDiv.innerHTML = `Transmitiendo en <strong style="color: #93c5fd;"><span class="platform-name">${platformEmoji} ${platformName}</span></strong>`;
+                        }
                     }
                 }
 
@@ -751,7 +908,7 @@
                 // ACTUALIZAR PREVIEW - SOLO MODIFICAR VALORES, NO RECREAR DOM
                 if (!previewContainer.querySelector('.stream-preview')) {
                     let viewerText = '';
-                    if (streamData.viewers > 0) {
+                    if (streamData.viewers >= 0) {
                         viewerText = `<div class="stream-viewers">
                             <div class="viewer-dot"></div>
                             <span class="viewer-count">${streamData.viewers.toLocaleString()}</span>
@@ -773,7 +930,7 @@
                                 </div>
                             </div>
                             <div class="stream-info">
-                                <div class="stream-category"><span class="category-text">🎮 ${streamData.game}</span></div>
+                                <div class="stream-category"><span class="category-text">♠️ ${streamData.game}</span></div>
                                 <div class="stream-title"><span class="title-text">${streamData.title}</span></div>
                                 <a href="${streamData.url}" target="_blank" class="stream-link-button">
                                     ▶ Ver en vivo
@@ -789,25 +946,58 @@
                         });
                     }
                 } else {
-                    const img = previewContainer.querySelector('.stream-preview-img');
-                    if (img && img.src !== streamData.thumbnail) {
-                        img.src = streamData.thumbnail;
-                        img.alt = streamData.title;
+                    // Actualizar imagen existente
+                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
+                    let img = previewContainer.querySelector('.stream-preview-img');
+                    
+                    if (streamData.thumbnail) {
+                        if (img) {
+                            // Actualizar imagen existente
+                            if (img.src !== streamData.thumbnail) {
+                                img.src = streamData.thumbnail;
+                                img.alt = streamData.title;
+                                img.style.display = 'block';
+                            }
+                        } else {
+                            // Crear imagen si no existe
+                            img = document.createElement('img');
+                            img.src = streamData.thumbnail;
+                            img.alt = streamData.title;
+                            img.className = 'stream-preview-img';
+                            img.onerror = function() { this.style.display = 'none'; };
+                            if (previewImageDiv) {
+                                previewImageDiv.insertBefore(img, previewImageDiv.firstChild);
+                            }
+                        }
+                    } else if (img) {
+                        // Si no hay thumbnail, ocultar la imagen
+                        img.style.display = 'none';
                     }
 
                     const viewerCount = previewContainer.querySelector('.viewer-count');
                     if (viewerCount) {
-                        const newViewerText = streamData.viewers > 0 ? streamData.viewers.toLocaleString() : '';
+                        const newViewerText = streamData.viewers >= 0 ? streamData.viewers.toLocaleString() : '0';
                         if (viewerCount.textContent !== newViewerText) {
                             viewerCount.textContent = newViewerText;
                         }
                         const viewerBox = previewContainer.querySelector('.stream-viewers');
-                        if (viewerBox) viewerBox.style.display = streamData.viewers > 0 ? 'flex' : 'none';
+                        if (viewerBox) viewerBox.style.display = 'flex';
+                    } else if (streamData.viewers >= 0) {
+                        // Crear contador si no existe
+                        const viewerBox = document.createElement('div');
+                        viewerBox.className = 'stream-viewers';
+                        viewerBox.innerHTML = `
+                            <div class="viewer-dot"></div>
+                            <span class="viewer-count">${streamData.viewers.toLocaleString()}</span>
+                        `;
+                        if (previewImageDiv) {
+                            previewImageDiv.appendChild(viewerBox);
+                        }
                     }
 
                     const categoryText = previewContainer.querySelector('.category-text');
                     if (categoryText) {
-                        const newCategoryHTML = `🎮 ${streamData.game}`;
+                        const newCategoryHTML = `♠️ ${streamData.game}`;
                         if (categoryText.innerHTML !== newCategoryHTML) {
                             categoryText.innerHTML = newCategoryHTML;
                         }
@@ -821,7 +1011,6 @@
                         }
                     }
 
-                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
                     if (previewImageDiv && previewImageDiv.dataset.url !== streamData.url) {
                         previewImageDiv.dataset.url = streamData.url;
                     }
@@ -848,11 +1037,8 @@
 
                 infoContainer.innerHTML = `
                     <div class="offline-message">
-                        <strong>No estoy transmitiendo en ${platformName} ahora.</strong><br>
-                        Pero puedes seguirme para recibir notificaciones cuando inicie un directo. ¡Te espero! 😊
-                    </div>
-                    <div class="next-stream">
-                        <strong>💡 Tip:</strong> Sigue mis redes para conocer el horario de mis próximos directos.
+                        <strong>🌙 Actualmente descansando</strong><br>
+                        ¡Sígueme en Twitch y Kick para no perderte el próximo directo!
                     </div>
                 `;
             }

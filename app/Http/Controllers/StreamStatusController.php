@@ -13,6 +13,7 @@ class StreamStatusController extends Controller
         $twitchLogin = env('TWITCH_LOGIN');
         $twitchClientId = env('TWITCH_CLIENT_ID');
         $twitchAccessToken = env('TWITCH_ACCESS_TOKEN');
+        $kickChannel = env('KICK_CHANNEL');
 
         // Check cache first (2 seconds for faster updates)
         $cacheKey = 'stream_status_cache';
@@ -37,18 +38,32 @@ class StreamStatusController extends Controller
         }
 
         $twitchData = $this->checkTwitchStatus($twitchLogin, $response);
+        $kickData = $this->checkKickStatus($kickChannel);
         $override = $this->getOverrideStatus();
 
-        // Determine if live
-        $isLive = $twitchData['live'] && !$override['offline'];
+        // Determine if live and platform
+        $twitchLive = $twitchData['live'] && !$override['offline'];
+        $kickLive = $kickData['live'] && !$override['offline'];
+        
+        $liveData = null;
+        $platform = null;
+        
+        if ($twitchLive) {
+            $liveData = $twitchData;
+            $platform = 'twitch';
+        } elseif ($kickLive) {
+            $liveData = $kickData;
+            $platform = 'kick';
+        }
 
         $result = [
-            'twitch' => $twitchData['live'],
-            'kick' => false,
-            'isLive' => $isLive,
-            'platform' => $isLive ? 'twitch' : null,
+            'twitch' => $twitchLive,
+            'kick' => $kickLive,
+            'isLive' => $twitchLive || $kickLive,
+            'platform' => $platform,
+            'streamData' => $liveData,
             'twitchData' => $twitchData,
-            'kickData' => ['live' => false],
+            'kickData' => $kickData,
         ];
 
         // Cache for 2 seconds
@@ -173,6 +188,70 @@ class StreamStatusController extends Controller
         return $data;
     }
 
+    private function checkKickStatus($channel)
+    {
+        $data = [
+            'live' => false,
+            'title' => '',
+            'viewers' => 0,
+            'thumbnail' => '',
+            'game' => '',
+            'url' => "https://kick.com/{$channel}"
+        ];
+
+        try {
+            // Scrape Kick HTML page
+            $response = Http::timeout(5)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language' => 'es-ES,es;q=0.9,en;q=0.8',
+                ])
+                ->get("https://kick.com/{$channel}");
+            
+            if ($response->successful()) {
+                $html = $response->body();
+                
+                // Check if stream is live by looking for common indicators
+                if (preg_match('/"livestream":\s*\{/', $html) && !preg_match('/"livestream":\s*null/', $html)) {
+                    $data['live'] = true;
+                    
+                    // Extract title
+                    if (preg_match('/"session_title":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
+                        $data['title'] = json_decode('"' . $m[1] . '"') ?: $m[1];
+                    }
+                    
+                    // Extract viewers
+                    if (preg_match('/"viewer_count":\s*(\d+)/', $html, $m)) {
+                        $data['viewers'] = (int)$m[1];
+                    }
+                    
+                    // Extract category/game
+                    if (preg_match('/"categories":\s*\[\s*\{\s*"[^"]*":\s*\d+,\s*"name":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
+                        $data['game'] = json_decode('"' . $m[1] . '"') ?: $m[1];
+                    } elseif (preg_match('/"category":\s*\{\s*"[^"]*":\s*\d+,\s*"[^"]*":\s*"[^"]*",\s*"name":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
+                        $data['game'] = json_decode('"' . $m[1] . '"') ?: $m[1];
+                    }
+                    
+                    if (empty($data['game'])) {
+                        $data['game'] = 'Sin categoría';
+                    }
+                    
+                    // Extract thumbnail
+                    if (preg_match('/"thumbnail":\s*\{\s*"[^"]*":\s*"[^"]*",\s*"url":\s*"([^"]*)"/', $html, $m)) {
+                        $data['thumbnail'] = $m[1];
+                    } elseif (preg_match('/<meta\s+property="og:image"\s+content="([^"]*)"/', $html, $m)) {
+                        $data['thumbnail'] = $m[1];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Kick Scrape Error: ' . $e->getMessage());
+        }
+
+        return $data;
+    }
+
     public function setStatus(Request $request)
     {
         $platform = $request->input('platform');
@@ -248,5 +327,32 @@ class StreamStatusController extends Controller
             'status' => $response->status(),
             'response' => $response->json()
         ], 200, ['Content-Type' => 'application/json'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
+
+    public function debugKick()
+    {
+        $channel = env('KICK_CHANNEL');
+        
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language' => 'es-ES,es;q=0.9,en;q=0.8',
+                ])
+                ->get("https://kick.com/{$channel}");
+            
+            return response()->json([
+                'status' => $response->status(),
+                'channel' => $channel,
+                'html_sample' => substr($response->body(), 0, 2000),
+                'processed' => $this->checkKickStatus($channel)
+            ], 200, ['Content-Type' => 'application/json'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'channel' => $channel
+            ], 500);
+        }
     }
 }
