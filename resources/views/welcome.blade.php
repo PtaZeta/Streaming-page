@@ -640,17 +640,111 @@
         let selectedPlatform = 'twitch';
         let lastStatus = null;
 
+        // Verificar estado de Kick directamente desde el navegador
+        async function checkKickStatus() {
+            try {
+                // Añadir timestamp para evitar caché
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://kick.com/api/v2/channels/ptazet4?_=${timestamp}`, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Verificar si livestream es null (offline) o si tiene el flag is_live en false
+                    const hasLivestream = data.livestream !== null && data.livestream !== undefined;
+                    
+                    if (!hasLivestream) {
+                        return {
+                            live: false,
+                            title: '',
+                            viewers: 0,
+                            game: '',
+                            thumbnail: '',
+                            url: 'https://kick.com/ptazet4'
+                        };
+                    }
+                    
+                    const isLiveFlagSet = data.livestream.is_live === true;
+                    
+                    if (!isLiveFlagSet) {
+                        return {
+                            live: false,
+                            title: '',
+                            viewers: 0,
+                            game: '',
+                            thumbnail: '',
+                            url: 'https://kick.com/ptazet4'
+                        };
+                    }
+                    
+                    let thumbnail = '';
+                    if (data.livestream.thumbnail && data.livestream.thumbnail.url) {
+                        thumbnail = data.livestream.thumbnail.url;
+                    } else if (data.livestream.thumbnail && typeof data.livestream.thumbnail === 'string') {
+                        thumbnail = data.livestream.thumbnail;
+                    } else if (data.user && data.user.profile_pic) {
+                        thumbnail = data.user.profile_pic;
+                    } else if (data.livestream.playback_url) {
+                        thumbnail = data.livestream.playback_url.replace('.m3u8', '.jpg');
+                    }
+                    
+                    return {
+                        live: true,
+                        title: data.livestream.session_title || '',
+                        viewers: parseInt(data.livestream.viewer_count) || 0,
+                        game: data.livestream.categories && data.livestream.categories.length > 0 
+                            ? data.livestream.categories[0].name 
+                            : 'Sin categoría',
+                        thumbnail: thumbnail,
+                        url: 'https://kick.com/ptazet4'
+                    };
+                }
+            } catch (error) {
+                // Silently fail
+            }
+            
+            // Si hay algún error, devolver offline
+            return {
+                live: false,
+                title: '',
+                viewers: 0,
+                game: '',
+                thumbnail: '',
+                url: 'https://kick.com/ptazet4'
+            };
+        }
+
         // Verificar estado de streams
         async function checkStreamStatus() {
             try {
-                // Si no hay override, intentar detección automática
-                const response = await fetch('/api/stream-status');
+                // Obtener estado de Twitch del servidor y Kick del navegador
+                const [serverResponse, kickData] = await Promise.all([
+                    fetch('/api/stream-status'),
+                    checkKickStatus()
+                ]);
                 
-                if (!response.ok) {
+                if (!serverResponse.ok) {
                     throw new Error('Error en la respuesta del servidor');
                 }
 
-                const data = await response.json();
+                const data = await serverResponse.json();
+                
+                // Si obtuvimos datos de Kick desde el navegador, sobrescribir
+                if (kickData !== null) {
+                    data.kick = kickData.live;
+                    data.kickData = kickData;
+                    data.isLive = data.twitch || kickData.live;
+                    if (!data.platform && kickData.live) {
+                        data.platform = 'kick';
+                    }
+                }
+                
                 lastStatus = data;
                 updateStreamUI(data);
             } catch (error) {
@@ -751,7 +845,7 @@
                 // ACTUALIZAR PREVIEW - SOLO MODIFICAR VALORES, NO RECREAR DOM
                 if (!previewContainer.querySelector('.stream-preview')) {
                     let viewerText = '';
-                    if (streamData.viewers > 0) {
+                    if (streamData.viewers >= 0) {
                         viewerText = `<div class="stream-viewers">
                             <div class="viewer-dot"></div>
                             <span class="viewer-count">${streamData.viewers.toLocaleString()}</span>
@@ -789,20 +883,53 @@
                         });
                     }
                 } else {
-                    const img = previewContainer.querySelector('.stream-preview-img');
-                    if (img && img.src !== streamData.thumbnail) {
-                        img.src = streamData.thumbnail;
-                        img.alt = streamData.title;
+                    // Actualizar imagen existente
+                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
+                    let img = previewContainer.querySelector('.stream-preview-img');
+                    
+                    if (streamData.thumbnail) {
+                        if (img) {
+                            // Actualizar imagen existente
+                            if (img.src !== streamData.thumbnail) {
+                                img.src = streamData.thumbnail;
+                                img.alt = streamData.title;
+                                img.style.display = 'block';
+                            }
+                        } else {
+                            // Crear imagen si no existe
+                            img = document.createElement('img');
+                            img.src = streamData.thumbnail;
+                            img.alt = streamData.title;
+                            img.className = 'stream-preview-img';
+                            img.onerror = function() { this.style.display = 'none'; };
+                            if (previewImageDiv) {
+                                previewImageDiv.insertBefore(img, previewImageDiv.firstChild);
+                            }
+                        }
+                    } else if (img) {
+                        // Si no hay thumbnail, ocultar la imagen
+                        img.style.display = 'none';
                     }
 
                     const viewerCount = previewContainer.querySelector('.viewer-count');
                     if (viewerCount) {
-                        const newViewerText = streamData.viewers > 0 ? streamData.viewers.toLocaleString() : '';
+                        const newViewerText = streamData.viewers >= 0 ? streamData.viewers.toLocaleString() : '0';
                         if (viewerCount.textContent !== newViewerText) {
                             viewerCount.textContent = newViewerText;
                         }
                         const viewerBox = previewContainer.querySelector('.stream-viewers');
-                        if (viewerBox) viewerBox.style.display = streamData.viewers > 0 ? 'flex' : 'none';
+                        if (viewerBox) viewerBox.style.display = 'flex';
+                    } else if (streamData.viewers >= 0) {
+                        // Crear contador si no existe
+                        const viewerBox = document.createElement('div');
+                        viewerBox.className = 'stream-viewers';
+                        viewerBox.innerHTML = `
+                            <div class="viewer-dot"></div>
+                            <span class="viewer-count">${streamData.viewers.toLocaleString()}</span>
+                        `;
+                        if (previewImageDiv) {
+                            previewImageDiv.appendChild(viewerBox);
+                        }
                     }
 
                     const categoryText = previewContainer.querySelector('.category-text');
@@ -821,7 +948,6 @@
                         }
                     }
 
-                    const previewImageDiv = previewContainer.querySelector('.stream-preview-image');
                     if (previewImageDiv && previewImageDiv.dataset.url !== streamData.url) {
                         previewImageDiv.dataset.url = streamData.url;
                     }
