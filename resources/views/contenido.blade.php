@@ -698,21 +698,27 @@
                     @foreach($vods as $vod)
                         <a href="{{ $vod['url'] }}" target="_blank" rel="noopener" class="content-card">
                             <div class="content-thumbnail">
-                                <img src="{{ str_replace('%{width}x%{height}', '640x360', $vod['thumbnail_url']) }}" alt="{{ $vod['title'] }}" loading="lazy">
+                                @php
+                                    $thumbnail = isset($vod['thumbnail_url']) 
+                                        ? str_replace(['%{width}', '%{height}'], ['640', '360'], $vod['thumbnail_url'])
+                                        : 'https://static-cdn.jtvnw.net/ttv-static/404_preview-640x360.jpg';
+                                @endphp
+                                <img src="{{ $thumbnail }}" alt="{{ $vod['title'] }}" loading="lazy" onerror="this.src='https://static-cdn.jtvnw.net/ttv-static/404_preview-640x360.jpg'">
                                 <div class="play-overlay">
                                     <div class="play-icon"></div>
                                 </div>
                                 <div class="views-badge">
-                                    👁 {{ number_format($vod['view_count']) }}
+                                    👁 {{ number_format($vod['view_count'] ?? 0) }}
                                 </div>
                                 <div class="duration-badge">
                                     @php
-                                        $duration = $vod['duration'];
+                                        $duration = $vod['duration'] ?? '0s';
                                         $seconds = 0;
                                         if (preg_match('/(\d+)h/', $duration, $h)) $seconds += intval($h[1]) * 3600;
                                         if (preg_match('/(\d+)m/', $duration, $m)) $seconds += intval($m[1]) * 60;
                                         if (preg_match('/(\d+)s/', $duration, $s)) $seconds += intval($s[1]);
-                                        echo gmdate('H:i:s', $seconds);
+                                        $formatted = $seconds >= 3600 ? gmdate('H:i:s', $seconds) : gmdate('i:s', $seconds);
+                                        echo $formatted;
                                     @endphp
                                 </div>
                             </div>
@@ -720,7 +726,7 @@
                                 <div class="content-title">{{ $vod['title'] }}</div>
                                 <div class="content-meta">
                                     <div class="meta-item">
-                                        📅 {{ \Carbon\Carbon::parse($vod['created_at'])->format('d/m/Y') }}
+                                        📅 {{ \Carbon\Carbon::parse($vod['created_at'])->format('d/m/Y H:i') }}
                                     </div>
                                     @if(isset($vod['type']))
                                         <div class="meta-item">
