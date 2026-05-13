@@ -679,7 +679,14 @@
                                         👤 {{ $clip['creator_name'] }}
                                     </div>
                                     <div class="meta-item">
-                                        📅 {{ \Carbon\Carbon::parse($clip['created_at'])->diffForHumans() }}
+                                        📅 
+                                        @php
+                                            try {
+                                                echo \Carbon\Carbon::parse($clip['created_at'])->diffForHumans();
+                                            } catch (\Exception $e) {
+                                                echo 'Recientemente';
+                                            }
+                                        @endphp
                                     </div>
                                 </div>
                             </div>
@@ -729,7 +736,14 @@
                                 <div class="content-title">{{ $vod['title'] }}</div>
                                 <div class="content-meta">
                                     <div class="meta-item">
-                                        📅 {{ \Carbon\Carbon::parse($vod['created_at'])->format('d/m/Y H:i') }}
+                                        📅 
+                                        @php
+                                            try {
+                                                echo \Carbon\Carbon::parse($vod['created_at'])->format('d/m/Y H:i');
+                                            } catch (\Exception $e) {
+                                                echo 'Fecha desconocida';
+                                            }
+                                        @endphp
                                     </div>
                                     @if(isset($vod['type']))
                                         <div class="meta-item">

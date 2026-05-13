@@ -374,16 +374,16 @@
             transform: translateX(5px);
         }
 
-        .platform-link.kick {
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
-            border-color: rgba(34, 197, 94, 0.6);
-            color: #86efac;
+        .platform-link.youtube {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fca5a5;
         }
 
-        .platform-link.kick:hover {
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(34, 197, 94, 0.2));
-            border-color: rgba(34, 197, 94, 1);
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+        .platform-link.youtube:hover {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(239, 68, 68, 0.2));
+            border-color: rgba(239, 68, 68, 1);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
             transform: translateX(5px);
         }
 
@@ -691,7 +691,7 @@
 
         <div class="platform-toggle" id="platform-toggle">
             <button class="toggle-btn active" data-platform="twitch">Twitch</button>
-            <button class="toggle-btn" data-platform="kick">Kick</button>
+            <button class="toggle-btn" data-platform="youtube">YouTube</button>
         </div>
 
         <div class="live-platforms">
@@ -699,9 +699,9 @@
                 <span>♠️</span>
                 <span>Twitch</span>
             </a>
-            <a href="https://kick.com/PtaZet4" target="_blank" rel="noopener" class="platform-link kick">
+            <a href="https://www.youtube.com/@PtaZet4" target="_blank" rel="noopener" class="platform-link youtube">
                 <span>♥️</span>
-                <span>Kick</span>
+                <span>YouTube</span>
             </a>
         </div>
 
@@ -738,111 +738,16 @@
         let selectedPlatform = 'twitch';
         let lastStatus = null;
 
-        // Verificar estado de Kick directamente desde el navegador
-        async function checkKickStatus() {
-            try {
-                // Añadir timestamp para evitar caché
-                const timestamp = new Date().getTime();
-                const response = await fetch(`https://kick.com/api/v2/channels/ptazet4?_=${timestamp}`, {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Verificar si livestream es null (offline) o si tiene el flag is_live en false
-                    const hasLivestream = data.livestream !== null && data.livestream !== undefined;
-                    
-                    if (!hasLivestream) {
-                        return {
-                            live: false,
-                            title: '',
-                            viewers: 0,
-                            game: '',
-                            thumbnail: '',
-                            url: 'https://kick.com/ptazet4'
-                        };
-                    }
-                    
-                    const isLiveFlagSet = data.livestream.is_live === true;
-                    
-                    if (!isLiveFlagSet) {
-                        return {
-                            live: false,
-                            title: '',
-                            viewers: 0,
-                            game: '',
-                            thumbnail: '',
-                            url: 'https://kick.com/ptazet4'
-                        };
-                    }
-                    
-                    let thumbnail = '';
-                    if (data.livestream.thumbnail && data.livestream.thumbnail.url) {
-                        thumbnail = data.livestream.thumbnail.url;
-                    } else if (data.livestream.thumbnail && typeof data.livestream.thumbnail === 'string') {
-                        thumbnail = data.livestream.thumbnail;
-                    } else if (data.user && data.user.profile_pic) {
-                        thumbnail = data.user.profile_pic;
-                    } else if (data.livestream.playback_url) {
-                        thumbnail = data.livestream.playback_url.replace('.m3u8', '.jpg');
-                    }
-                    
-                    return {
-                        live: true,
-                        title: data.livestream.session_title || '',
-                        viewers: parseInt(data.livestream.viewer_count) || 0,
-                        game: data.livestream.categories && data.livestream.categories.length > 0 
-                            ? data.livestream.categories[0].name 
-                            : 'Sin categoría',
-                        thumbnail: thumbnail,
-                        url: 'https://kick.com/ptazet4'
-                    };
-                }
-            } catch (error) {
-                // Silently fail
-            }
-            
-            // Si hay algún error, devolver offline
-            return {
-                live: false,
-                title: '',
-                viewers: 0,
-                game: '',
-                thumbnail: '',
-                url: 'https://kick.com/ptazet4'
-            };
-        }
-
         // Verificar estado de streams
         async function checkStreamStatus() {
             try {
-                // Obtener estado de Twitch del servidor y Kick del navegador
-                const [serverResponse, kickData] = await Promise.all([
-                    fetch('/api/stream-status'),
-                    checkKickStatus()
-                ]);
+                const response = await fetch('/api/stream-status');
                 
-                if (!serverResponse.ok) {
+                if (!response.ok) {
                     throw new Error('Error en la respuesta del servidor');
                 }
 
-                const data = await serverResponse.json();
-                
-                // Si obtuvimos datos de Kick desde el navegador, sobrescribir
-                if (kickData !== null) {
-                    data.kick = kickData.live;
-                    data.kickData = kickData;
-                    data.isLive = data.twitch || kickData.live;
-                    if (!data.platform && kickData.live) {
-                        data.platform = 'kick';
-                    }
-                }
-                
+                const data = await response.json();
                 lastStatus = data;
                 updateStreamUI(data);
             } catch (error) {
@@ -869,45 +774,45 @@
             const infoContainer = document.getElementById('stream-info-container');
             const previewContainer = document.getElementById('stream-preview-container');
             const twitchButton = document.querySelector('.platform-link.twitch');
-            const kickButton = document.querySelector('.platform-link.kick');
+            const youtubeButton = document.querySelector('.platform-link.youtube');
             const platformToggle = document.getElementById('platform-toggle');
 
             // Normalizar datos por plataforma
             const twitchData = data.twitchData || (data.platform === 'twitch' ? data.streamData : { live: data.twitch || false });
-            const kickData = data.kickData || (data.platform === 'kick' ? data.streamData : { live: data.kick || false });
+            const youtubeData = data.youtubeData || (data.platform === 'youtube' ? data.streamData : { live: data.youtube || false });
 
             const twitchLive = twitchData && twitchData.live;
-            const kickLive = kickData && kickData.live;
+            const youtubeLive = youtubeData && youtubeData.live;
 
             // Mostrar/ocultar botones inferiores según plataforma en directo
             if (twitchButton) twitchButton.style.display = twitchLive ? 'none' : 'inline-flex';
-            if (kickButton) kickButton.style.display = kickLive ? 'none' : 'inline-flex';
+            if (youtubeButton) youtubeButton.style.display = youtubeLive ? 'none' : 'inline-flex';
 
             // Mostrar slider solo si ambas plataformas están en directo
             if (platformToggle) {
-                const showToggle = twitchLive && kickLive;
+                const showToggle = twitchLive && youtubeLive;
                 platformToggle.style.display = showToggle ? 'grid' : 'none';
                 if (!showToggle) {
-                    if (twitchLive && !kickLive) selectedPlatform = 'twitch';
-                    else if (kickLive && !twitchLive) selectedPlatform = 'kick';
+                    if (twitchLive && !youtubeLive) selectedPlatform = 'twitch';
+                    else if (youtubeLive && !twitchLive) selectedPlatform = 'youtube';
                 }
             }
 
             // Elegir plataforma inicial si no hay selección manual o cambiar a la que esté en vivo
             if (!selectedPlatform) {
-                selectedPlatform = twitchLive ? 'twitch' : (kickLive ? 'kick' : 'twitch');
-            } else if (!twitchLive && kickLive && selectedPlatform === 'twitch') {
-                selectedPlatform = 'kick';
-            } else if (!kickLive && twitchLive && selectedPlatform === 'kick') {
+                selectedPlatform = twitchLive ? 'twitch' : (youtubeLive ? 'youtube' : 'twitch');
+            } else if (!twitchLive && youtubeLive && selectedPlatform === 'twitch') {
+                selectedPlatform = 'youtube';
+            } else if (!youtubeLive && twitchLive && selectedPlatform === 'youtube') {
                 selectedPlatform = 'twitch';
             }
             updatePlatformToggle(selectedPlatform);
 
             const activePlatform = selectedPlatform;
-            const activeData = activePlatform === 'twitch' ? twitchData : kickData;
+            const activeData = activePlatform === 'twitch' ? twitchData : youtubeData;
             const isLive = activeData && activeData.live;
-            const platformEmoji = activePlatform === 'twitch' ? '♠️' : '♥️';
-            const platformName = activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1);
+            const platformEmoji = activePlatform === 'twitch' ? '♠️' : '▶️';
+            const platformName = activePlatform === 'twitch' ? 'Twitch' : 'YouTube';
 
             if (isLive && activeData) {
                 const streamData = {
@@ -1088,7 +993,7 @@
                 infoContainer.innerHTML = `
                     <div class="offline-message">
                         <strong>🌙 Actualmente descansando</strong><br>
-                        ¡Sígueme en Twitch y Kick para no perderte el próximo directo!
+                        ¡Sígueme en Twitch y YouTube para no perderte el próximo directo!
                     </div>
                 `;
             }

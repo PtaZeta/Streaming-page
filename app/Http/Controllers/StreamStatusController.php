@@ -13,7 +13,8 @@ class StreamStatusController extends Controller
         $twitchLogin = env('TWITCH_LOGIN');
         $twitchClientId = env('TWITCH_CLIENT_ID');
         $twitchAccessToken = env('TWITCH_ACCESS_TOKEN');
-        $kickChannel = env('KICK_CHANNEL');
+        $youtubeChannelId = env('YOUTUBE_CHANNEL_ID');
+        $youtubeApiKey = env('YOUTUBE_API_KEY');
 
         // Check cache first (2 seconds for faster updates)
         $cacheKey = 'stream_status_cache';
@@ -38,12 +39,12 @@ class StreamStatusController extends Controller
         }
 
         $twitchData = $this->checkTwitchStatus($twitchLogin, $response);
-        $kickData = $this->checkKickStatus($kickChannel);
+        $youtubeData = $this->checkYoutubeStatus($youtubeChannelId, $youtubeApiKey);
         $override = $this->getOverrideStatus();
 
         // Determine if live and platform
         $twitchLive = $twitchData['live'] && !$override['offline'];
-        $kickLive = $kickData['live'] && !$override['offline'];
+        $youtubeLive = $youtubeData['live'] && !$override['offline'];
         
         $liveData = null;
         $platform = null;
@@ -51,19 +52,19 @@ class StreamStatusController extends Controller
         if ($twitchLive) {
             $liveData = $twitchData;
             $platform = 'twitch';
-        } elseif ($kickLive) {
-            $liveData = $kickData;
-            $platform = 'kick';
+        } elseif ($youtubeLive) {
+            $liveData = $youtubeData;
+            $platform = 'youtube';
         }
 
         $result = [
             'twitch' => $twitchLive,
-            'kick' => $kickLive,
-            'isLive' => $twitchLive || $kickLive,
+            'youtube' => $youtubeLive,
+            'isLive' => $twitchLive || $youtubeLive,
             'platform' => $platform,
             'streamData' => $liveData,
             'twitchData' => $twitchData,
-            'kickData' => $kickData,
+            'youtubeData' => $youtubeData,
         ];
 
         // Cache for 2 seconds
@@ -188,7 +189,7 @@ class StreamStatusController extends Controller
         return $data;
     }
 
-    private function checkKickStatus($channel)
+    private function checkYoutubeStatus($channelId, $apiKey)
     {
         $data = [
             'live' => false,
@@ -196,57 +197,63 @@ class StreamStatusController extends Controller
             'viewers' => 0,
             'thumbnail' => '',
             'game' => '',
-            'url' => "https://kick.com/{$channel}"
+            'url' => "https://www.youtube.com/@PtaZet4"
         ];
 
         try {
-            // Scrape Kick HTML page
+            // Get channel details to find active live streams
             $response = Http::timeout(5)
-                ->withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language' => 'es-ES,es;q=0.9,en;q=0.8',
-                ])
-                ->get("https://kick.com/{$channel}");
+                ->get("https://www.googleapis.com/youtube/v3/search", [
+                    'key' => $apiKey,
+                    'channelId' => $channelId,
+                    'part' => 'snippet',
+                    'type' => 'video',
+                    'eventType' => 'live',
+                    'order' => 'date',
+                    'maxResults' => 1
+                ]);
             
             if ($response->successful()) {
-                $html = $response->body();
+                $json = $response->json();
                 
-                // Check if stream is live by looking for common indicators
-                if (preg_match('/"livestream":\s*\{/', $html) && !preg_match('/"livestream":\s*null/', $html)) {
-                    $data['live'] = true;
+                if (isset($json['items']) && !empty($json['items'])) {
+                    $item = $json['items'][0];
+                    $videoId = $item['id']['videoId'] ?? null;
                     
-                    // Extract title
-                    if (preg_match('/"session_title":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
-                        $data['title'] = json_decode('"' . $m[1] . '"') ?: $m[1];
-                    }
-                    
-                    // Extract viewers
-                    if (preg_match('/"viewer_count":\s*(\d+)/', $html, $m)) {
-                        $data['viewers'] = (int)$m[1];
-                    }
-                    
-                    // Extract category/game
-                    if (preg_match('/"categories":\s*\[\s*\{\s*"[^"]*":\s*\d+,\s*"name":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
-                        $data['game'] = json_decode('"' . $m[1] . '"') ?: $m[1];
-                    } elseif (preg_match('/"category":\s*\{\s*"[^"]*":\s*\d+,\s*"[^"]*":\s*"[^"]*",\s*"name":\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/', $html, $m)) {
-                        $data['game'] = json_decode('"' . $m[1] . '"') ?: $m[1];
-                    }
-                    
-                    if (empty($data['game'])) {
-                        $data['game'] = 'Sin categoría';
-                    }
-                    
-                    // Extract thumbnail
-                    if (preg_match('/"thumbnail":\s*\{\s*"[^"]*":\s*"[^"]*",\s*"url":\s*"([^"]*)"/', $html, $m)) {
-                        $data['thumbnail'] = $m[1];
-                    } elseif (preg_match('/<meta\s+property="og:image"\s+content="([^"]*)"/', $html, $m)) {
-                        $data['thumbnail'] = $m[1];
+                    if ($videoId) {
+                        $data['live'] = true;
+                        $data['title'] = $item['snippet']['title'] ?? 'Sin título';
+                        $data['thumbnail'] = $item['snippet']['thumbnails']['high']['url'] ?? '';
+                        
+                        // Get video statistics for viewer count
+                        $statsResponse = Http::timeout(5)
+                            ->get("https://www.googleapis.com/youtube/v3/videos", [
+                                'key' => $apiKey,
+                                'id' => $videoId,
+                                'part' => 'liveStreamingDetails,statistics',
+                                'fields' => 'items(liveStreamingDetails,statistics)'
+                            ]);
+                        
+                        if ($statsResponse->successful()) {
+                            $statsJson = $statsResponse->json();
+                            if (isset($statsJson['items'][0])) {
+                                $stats = $statsJson['items'][0];
+                                
+                                // Check if it's actually live (has concurrentViewers)
+                                if (isset($stats['liveStreamingDetails']['concurrentViewers'])) {
+                                    $data['viewers'] = (int)$stats['liveStreamingDetails']['concurrentViewers'];
+                                } elseif (isset($stats['statistics']['viewCount'])) {
+                                    $data['viewers'] = (int)$stats['statistics']['viewCount'];
+                                }
+                            }
+                        }
+                        
+                        $data['game'] = 'YouTube Live';
                     }
                 }
             }
         } catch (\Exception $e) {
-            \Log::error('Kick Scrape Error: ' . $e->getMessage());
+            \Log::error('YouTube Status Check Error: ' . $e->getMessage());
         }
 
         return $data;
@@ -257,7 +264,7 @@ class StreamStatusController extends Controller
         $platform = $request->input('platform');
         $offline = $request->input('offline', false);
 
-        if (!in_array($platform, ['twitch', 'kick'])) {
+        if (!in_array($platform, ['twitch', 'youtube'])) {
             return response()->json(['error' => 'Invalid platform'], 400);
         }
 
@@ -296,7 +303,7 @@ class StreamStatusController extends Controller
     {
         return response()->json([
             'twitch_login' => env('TWITCH_LOGIN'),
-            'kick_channel' => env('KICK_CHANNEL'),
+            'youtube_channel_id' => env('YOUTUBE_CHANNEL_ID'),
         ]);
     }
 
@@ -329,25 +336,35 @@ class StreamStatusController extends Controller
         ], 200, ['Content-Type' => 'application/json'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 
-    public function debugKick()
+    public function debugYoutube()
     {
-        $channel = env('KICK_CHANNEL');
+        $channelId = env('YOUTUBE_CHANNEL_ID');
+        $apiKey = env('YOUTUBE_API_KEY');
         
         try {
             $response = Http::timeout(5)
-                ->withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language' => 'es-ES,es;q=0.9,en;q=0.8',
-                ])
-                ->get("https://kick.com/{$channel}");
+                ->get("https://www.googleapis.com/youtube/v3/search", [
+                    'key' => $apiKey,
+                    'channelId' => $channelId,
+                    'part' => 'snippet',
+                    'type' => 'video',
+                    'eventType' => 'live',
+                    'order' => 'date',
+                    'maxResults' => 1
+                ]);
             
             return response()->json([
                 'status' => $response->status(),
-                'channel' => $channel,
-                'html_sample' => substr($response->body(), 0, 2000),
-                'processed' => $this->checkKickStatus($channel)
+                'channel_id' => $channelId,
+                'response' => $response->json(),
+                'processed' => $this->checkYoutubeStatus($channelId, $apiKey)
             ], 200, ['Content-Type' => 'application/json'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),

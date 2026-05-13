@@ -30,6 +30,9 @@ class TwitchContentController extends Controller
         $twitchAccessToken = env('TWITCH_ACCESS_TOKEN');
         $twitchLogin = env('TWITCH_LOGIN');
 
+        \Log::info('Getting clips for period: ' . $period);
+        \Log::info('Using login: ' . $twitchLogin);
+
         try {
             // Primero obtener el ID del usuario
             $userResponse = Http::timeout(5)
@@ -41,11 +44,16 @@ class TwitchContentController extends Controller
                     'login' => $twitchLogin
                 ]);
 
+            \Log::info('User response status: ' . $userResponse->status());
+            \Log::info('User response: ' . json_encode($userResponse->json()));
+
             if (!$userResponse->successful() || empty($userResponse->json()['data'])) {
+                \Log::error('Failed to get user ID or empty response');
                 return [];
             }
 
             $userId = $userResponse->json()['data'][0]['id'];
+            \Log::info('Got user ID: ' . $userId);
 
             // Determinar fecha de inicio según el periodo
             $startedAt = null;
@@ -82,9 +90,22 @@ class TwitchContentController extends Controller
                 ])
                 ->get("https://api.twitch.tv/helix/clips", $params);
 
+            \Log::info('Clips response status: ' . $response->status());
+            \Log::info('Clips response: ' . json_encode($response->json()));
+
             if ($response->successful()) {
-                $clips = $response->json()['data'] ?? [];
+                $clipsData = $response->json()['data'] ?? [];
                 
+                \Log::info('Got ' . count($clipsData) . ' clips');
+
+                // Validar que cada clip tenga los campos necesarios
+                $clips = array_filter($clipsData, function($clip) {
+                    return isset($clip['url'], $clip['thumbnail_url'], $clip['title'], 
+                                 $clip['view_count'], $clip['creator_name'], $clip['created_at'], $clip['duration']);
+                });
+                
+                \Log::info('After validation: ' . count($clips) . ' clips');
+
                 Cache::put($cacheKey, [
                     'data' => $clips,
                     'timestamp' => now()
@@ -94,6 +115,7 @@ class TwitchContentController extends Controller
             }
         } catch (\Exception $e) {
             \Log::error('Error fetching Twitch clips: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
         }
 
         return [];
@@ -112,6 +134,8 @@ class TwitchContentController extends Controller
         $twitchAccessToken = env('TWITCH_ACCESS_TOKEN');
         $twitchLogin = env('TWITCH_LOGIN');
 
+        \Log::info('Getting VODs');
+
         try {
             // Primero obtener el ID del usuario
             $userResponse = Http::timeout(5)
@@ -123,11 +147,15 @@ class TwitchContentController extends Controller
                     'login' => $twitchLogin
                 ]);
 
+            \Log::info('User response status for VODs: ' . $userResponse->status());
+
             if (!$userResponse->successful() || empty($userResponse->json()['data'])) {
+                \Log::error('Failed to get user ID for VODs');
                 return [];
             }
 
             $userId = $userResponse->json()['data'][0]['id'];
+            \Log::info('Got user ID for VODs: ' . $userId);
 
             // Obtener VODs
             $response = Http::timeout(5)
@@ -141,8 +169,21 @@ class TwitchContentController extends Controller
                     'type' => 'archive'
                 ]);
 
+            \Log::info('VODs response status: ' . $response->status());
+            \Log::info('VODs response: ' . json_encode($response->json()));
+
             if ($response->successful()) {
-                $vods = $response->json()['data'] ?? [];
+                $vodsData = $response->json()['data'] ?? [];
+                
+                \Log::info('Got ' . count($vodsData) . ' VODs');
+
+                // Validar que cada VOD tenga los campos necesarios
+                $vods = array_filter($vodsData, function($vod) {
+                    return isset($vod['url'], $vod['thumbnail_url'], $vod['title'], 
+                                 $vod['view_count'], $vod['created_at']) && is_string($vod['created_at']);
+                });
+                
+                \Log::info('After validation: ' . count($vods) . ' VODs');
                 
                 Cache::put($cacheKey, [
                     'data' => $vods,
@@ -153,6 +194,7 @@ class TwitchContentController extends Controller
             }
         } catch (\Exception $e) {
             \Log::error('Error fetching Twitch VODs: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
         }
 
         return [];

@@ -17,4 +17,4 @@ Route::get('/api/stream-status/override/clear', [StreamStatusController::class, 
 Route::get('/api/stream-status/debug', [StreamStatusController::class, 'debugStatus']);
 Route::get('/api/stream-status/debug-scrape', [StreamStatusController::class, 'debugTwitchScrape']);
 Route::get('/api/stream-status/debug-gql', [StreamStatusController::class, 'debugGraphQL']);
-Route::get('/api/stream-status/debug-kick', [StreamStatusController::class, 'debugKick']);
+Route::get('/api/stream-status/debug-youtube', [StreamStatusController::class, 'debugYoutube']);
